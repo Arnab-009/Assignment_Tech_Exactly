@@ -67,6 +67,11 @@ async def summarize(
     started = time.perf_counter()
     logger.info("Listing files in folder %s", payload.folder_id)
     files = await drive.list_files(payload.folder_id, credentials)
+
+    # If a specific file was requested, narrow down to just that one.
+    if payload.file_id:
+        files = [f for f in files if f.id == payload.file_id]
+
     if not files:
         raise FolderNotFoundError(
             "No supported documents (.pdf, .docx, .txt) were found in this folder."

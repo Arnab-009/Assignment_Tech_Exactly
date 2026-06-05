@@ -14,6 +14,10 @@ services:
       - |
         pip install --no-cache-dir -r requirements-dev.txt &&
         python -m pytest tests/ -v --tb=short
+    volumes:
+      - ./backend/requirements-dev.txt:/app/requirements-dev.txt:ro
+      - ./backend/tests:/app/tests:ro
+      - ./backend/pytest.ini:/app/pytest.ini:ro
     environment:
       GOOGLE_CLIENT_ID: "test-client-id"
       GOOGLE_CLIENT_SECRET: "test-client-secret"

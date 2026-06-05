@@ -1,7 +1,10 @@
 """Google OAuth2 authentication routes."""
 from __future__ import annotations
 
+import base64
+import hashlib
 import logging
+import secrets
 
 import httpx
 from fastapi import APIRouter, Request
@@ -28,7 +31,16 @@ SCOPES = [
 ]
 
 _STATE_KEY = "oauth_state"
+_CODE_VERIFIER_KEY = "pkce_code_verifier"
 _USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+
+
+def _pkce_pair() -> tuple[str, str]:
+    """Return a (code_verifier, code_challenge) PKCE S256 pair."""
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
+    digest = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    return verifier, challenge
 
 
 def _build_flow(settings: Settings, state: str | None = None) -> Flow:
@@ -51,12 +63,16 @@ def login(request: Request) -> RedirectResponse:
     """Build the Google consent URL and redirect the user to it."""
     settings = get_settings()
     flow = _build_flow(settings)
+    verifier, challenge = _pkce_pair()
     auth_url, state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
+        code_challenge=challenge,
+        code_challenge_method="S256",
     )
     request.session[_STATE_KEY] = state
+    request.session[_CODE_VERIFIER_KEY] = verifier
     return RedirectResponse(auth_url, status_code=307)
 
 
@@ -76,11 +92,13 @@ async def callback(request: Request) -> RedirectResponse:
     if not code:
         return _redirect_with_error(settings, "missing_code")
 
+    code_verifier = request.session.pop(_CODE_VERIFIER_KEY, None)
     flow = _build_flow(settings, state=state)
     try:
         # Exchange the code directly (robust behind a reverse proxy, where the
         # raw request URL host/scheme may differ from the public redirect URI).
-        flow.fetch_token(code=code)
+        # code_verifier is required for PKCE — Google enforces this.
+        flow.fetch_token(code=code, code_verifier=code_verifier)
     except Exception as exc:  # noqa: BLE001
         logger.warning("OAuth token exchange failed: %s", exc)
         return _redirect_with_error(settings, "token_exchange_failed")

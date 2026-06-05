@@ -20,7 +20,7 @@ from app.exceptions import (
     DrivePermissionError,
     FolderNotFoundError,
 )
-from app.models.schemas import DriveFile
+from app.models.schemas import DriveFile, DriveFolder
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,10 @@ class DriveService:
         self._max_file_size_bytes = max_file_size_bytes
 
     # -- Public async API ---------------------------------------------------
+    async def list_folders(self, credentials: Credentials) -> list[DriveFolder]:
+        """List all Drive folders visible to the authenticated user."""
+        return await run_in_threadpool(self._list_folders_sync, credentials)
+
     async def list_files(
         self, folder_id: str, credentials: Credentials
     ) -> list[DriveFile]:
@@ -68,6 +72,35 @@ class DriveService:
         return build(
             "drive", "v3", credentials=credentials, cache_discovery=False
         )
+
+    def _list_folders_sync(self, credentials: Credentials) -> list[DriveFolder]:
+        service = self._build(credentials)
+        folders: list[DriveFolder] = []
+        page_token: str | None = None
+        query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        try:
+            while True:
+                response = (
+                    service.files()
+                    .list(
+                        q=query,
+                        fields="nextPageToken, files(id, name)",
+                        pageSize=200,
+                        pageToken=page_token,
+                        orderBy="name",
+                        supportsAllDrives=True,
+                        includeItemsFromAllDrives=True,
+                    )
+                    .execute()
+                )
+                for raw in response.get("files", []):
+                    folders.append(DriveFolder(id=raw["id"], name=raw.get("name", "Untitled")))
+                page_token = response.get("nextPageToken")
+                if not page_token:
+                    break
+        except HttpError as exc:
+            raise self._translate_http_error(exc, "folders") from exc
+        return folders
 
     def _list_files_sync(
         self, folder_id: str, credentials: Credentials

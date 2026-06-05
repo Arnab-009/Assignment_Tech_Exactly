@@ -1,13 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { api } from '../api/client'
 import Spinner from './Spinner'
 
-export default function HomeView({ defaultFolderId, onSubmit, busy }) {
+export default function HomeView({ defaultFolderId, onSubmit }) {
   const [folderId, setFolderId] = useState(defaultFolderId || '')
+  const [folders, setFolders] = useState([])
+  const [loadingFolders, setLoadingFolders] = useState(true)
+  const [folderError, setFolderError] = useState(null)
+
   const isValid = folderId.trim().length >= 10
+
+  useEffect(() => {
+    api.listFolders()
+      .then((data) => {
+        setFolders(data)
+        if (!defaultFolderId && data.length > 0) {
+          setFolderId(data[0].id)
+        }
+      })
+      .catch(() => setFolderError('Could not load folders from Google Drive.'))
+      .finally(() => setLoadingFolders(false))
+  }, [defaultFolderId])
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (isValid && !busy) onSubmit(folderId.trim())
+    if (!isValid) return
+    const folder = folders.find((f) => f.id === folderId)
+    onSubmit({ id: folderId, name: folder?.name || folderId })
   }
 
   return (
@@ -30,8 +49,8 @@ export default function HomeView({ defaultFolderId, onSubmit, busy }) {
           Summarize your documents
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-          Enter a Google Drive folder ID to scan its documents. The AI will read
-          each PDF, DOCX, and TXT file and produce a concise summary.
+          Select a Google Drive folder to browse its documents and pick one to
+          summarize with AI.
         </p>
       </div>
 
@@ -41,65 +60,62 @@ export default function HomeView({ defaultFolderId, onSubmit, busy }) {
         className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
       >
         <label
-          htmlFor="folderId"
+          htmlFor="folderSelect"
           className="mb-2 block text-sm font-medium text-slate-700"
         >
-          Google Drive Folder ID
+          Google Drive Folder
         </label>
-        <div className="relative">
-          <input
-            id="folderId"
-            type="text"
-            value={folderId}
-            onChange={(e) => setFolderId(e.target.value)}
-            placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
-            disabled={busy}
-            className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800
-                       placeholder:text-slate-400
-                       focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100
-                       disabled:opacity-60"
-          />
-          {folderId && (
-            <button
-              type="button"
-              onClick={() => setFolderId('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-              aria-label="Clear input"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
-          )}
-        </div>
 
-        <p className="mt-2 text-xs text-slate-400">
-          Paste the folder ID from the URL:&nbsp;
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px] text-slate-500">
-            drive.google.com/drive/folders/<strong>{'<ID>'}</strong>
-          </code>
-        </p>
+        {loadingFolders ? (
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
+            <Spinner />
+            <span>Loading folders…</span>
+          </div>
+        ) : folderError ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {folderError}
+          </p>
+        ) : folders.length === 0 ? (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
+            No folders found in your Google Drive.
+          </p>
+        ) : (
+          <div className="relative">
+            <select
+              id="folderSelect"
+              value={folderId}
+              onChange={(e) => setFolderId(e.target.value)}
+              disabled={loadingFolders}
+              className="w-full appearance-none rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-800
+                         focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100
+                         disabled:opacity-60"
+            >
+              <option value="" disabled>Select a folder…</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            {/* Custom chevron */}
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={!isValid || busy}
+          disabled={!isValid || loadingFolders}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3
                      text-sm font-semibold text-white shadow-md shadow-blue-200
                      transition-all duration-200
                      hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-blue-300
                      disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
-          {busy ? (
-            <>
-              <Spinner light />
-              <span>Summarizing documents…</span>
-            </>
-          ) : (
-            <>
-              <SparklesIcon />
-              <span>Summarize Documents</span>
-            </>
-          )}
+          <FolderIcon />
+          <span>Browse Files</span>
+          <ChevronRightIcon />
         </button>
       </form>
 
@@ -118,15 +134,18 @@ export default function HomeView({ defaultFolderId, onSubmit, busy }) {
   )
 }
 
-function SparklesIcon() {
+function FolderIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

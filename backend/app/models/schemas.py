@@ -15,6 +15,13 @@ ParseStatus = Literal["ok", "empty", "error"]
 SummaryStatus = Literal["success", "empty", "error"]
 
 
+class DriveFolder(BaseModel):
+    """A folder listed from Google Drive."""
+
+    id: str
+    name: str
+
+
 class DriveFile(BaseModel):
     """A file listed from a Google Drive folder."""
 
@@ -53,6 +60,7 @@ class SummarizeRequest(BaseModel):
     """Body for ``POST /api/summarize``."""
 
     folder_id: str = Field(..., description="Google Drive folder ID to process.")
+    file_id: Optional[str] = Field(None, description="If provided, only this single file is summarized.")
 
     @field_validator("folder_id")
     @classmethod
@@ -64,6 +72,16 @@ class SummarizeRequest(BaseModel):
             value = match.group(1)
         if not _DRIVE_ID_RE.match(value):
             raise ValueError("Invalid Google Drive folder ID.")
+        return value
+
+    @field_validator("file_id")
+    @classmethod
+    def _validate_file_id(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip()
+        if not _DRIVE_ID_RE.match(value):
+            raise ValueError("Invalid Google Drive file ID.")
         return value
 
 

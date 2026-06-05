@@ -5,6 +5,7 @@ import Alert from './components/Alert'
 import Spinner from './components/Spinner'
 import ConnectCard from './components/ConnectCard'
 import HomeView from './components/HomeView'
+import FilePickerView from './components/FilePickerView'
 import ResultsView from './components/ResultsView'
 
 const AUTH_ERROR_MESSAGES = {
@@ -21,6 +22,7 @@ export default function App() {
     email: null,
     defaultFolderId: '',
   })
+  const [selectedFolder, setSelectedFolder] = useState(null) // { id, name }
   const [results, setResults] = useState(null)
   const [summarizing, setSummarizing] = useState(false)
   const [error, setError] = useState(null)
@@ -40,8 +42,6 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    // Surface any auth error handed back on the OAuth redirect URL, then
-    // scrub it from the address bar.
     const params = new URLSearchParams(window.location.search)
     const authError = params.get('auth_error')
     if (authError) {
@@ -51,11 +51,17 @@ export default function App() {
     refreshAuth()
   }, [refreshAuth])
 
-  const handleSummarize = async (folderId) => {
+  const handleFolderSelect = (folder) => {
+    setSelectedFolder(folder)
+    setResults(null)
+    setError(null)
+  }
+
+  const handleSummarize = async (folderId, fileId) => {
     setError(null)
     setSummarizing(true)
     try {
-      const data = await api.summarize(folderId)
+      const data = await api.summarize(folderId, fileId)
       setResults(data)
     } catch (err) {
       if (err.status === 401) {
@@ -69,19 +75,26 @@ export default function App() {
     }
   }
 
+  const handleBackToFiles = () => {
+    setResults(null)
+    setError(null)
+  }
+
+  const handleBackToFolders = () => {
+    setSelectedFolder(null)
+    setResults(null)
+    setError(null)
+  }
+
   const handleLogout = async () => {
     try {
       await api.logout()
     } catch {
-      /* ignore — clearing local state below is what matters */
+      /* ignore */
     }
+    setSelectedFolder(null)
     setResults(null)
     setAuth((prev) => ({ ...prev, authenticated: false, email: null }))
-  }
-
-  const handleReset = () => {
-    setResults(null)
-    setError(null)
   }
 
   return (
@@ -101,12 +114,21 @@ export default function App() {
         ) : !auth.authenticated ? (
           <ConnectCard />
         ) : results ? (
-          <ResultsView results={results} onReset={handleReset} />
+          <ResultsView
+            results={results}
+            onBack={handleBackToFiles}
+          />
+        ) : selectedFolder ? (
+          <FilePickerView
+            folder={selectedFolder}
+            onBack={handleBackToFolders}
+            onSummarize={handleSummarize}
+            busy={summarizing}
+          />
         ) : (
           <HomeView
             defaultFolderId={auth.defaultFolderId}
-            onSubmit={handleSummarize}
-            busy={summarizing}
+            onSubmit={handleFolderSelect}
           />
         )}
       </main>

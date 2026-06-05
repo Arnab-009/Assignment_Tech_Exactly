@@ -9,12 +9,21 @@ from google.oauth2.credentials import Credentials
 
 from app.dependencies import get_current_credentials, get_drive_service
 from app.exceptions import InvalidFolderIdError
-from app.models.schemas import DriveFile
+from app.models.schemas import DriveFile, DriveFolder
 from app.services.drive_service import DriveService
 
 router = APIRouter(prefix="/api/drive", tags=["drive"])
 
 _DRIVE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{10,200}$")
+
+
+@router.get("/folders", response_model=list[DriveFolder])
+async def list_folders(
+    credentials: Credentials = Depends(get_current_credentials),
+    drive: DriveService = Depends(get_drive_service),
+) -> list[DriveFolder]:
+    """Return all Drive folders visible to the authenticated user."""
+    return await drive.list_folders(credentials)
 
 
 @router.get("/files", response_model=list[DriveFile])

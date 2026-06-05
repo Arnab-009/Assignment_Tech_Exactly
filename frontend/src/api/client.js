@@ -39,12 +39,16 @@ async function request(path, options = {}) {
 export const api = {
   getAuthStatus: () => request('/api/auth/status'),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
+  listFolders: () => request('/api/drive/folders'),
   listFiles: (folderId) =>
     request(`/api/drive/files?folder_id=${encodeURIComponent(folderId)}`),
-  summarize: (folderId) =>
+  summarize: (folderId, fileId = null) =>
     request('/api/summarize', {
       method: 'POST',
-      body: JSON.stringify({ folder_id: folderId }),
+      body: JSON.stringify({
+        folder_id: folderId,
+        ...(fileId ? { file_id: fileId } : {}),
+      }),
     }),
   getResults: () => request('/api/results'),
 }
