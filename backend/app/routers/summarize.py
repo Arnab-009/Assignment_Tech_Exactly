@@ -36,7 +36,7 @@ from app.models.schemas import (
 )
 from app.services.drive_service import DriveService
 from app.services.llm_service import LLMService
-from app.services.parser_service import EMPTY_DOCUMENT, PARSE_ERROR, ParserService
+from app.services.parser_service import PARSE_ERROR, ParserService
 
 logger = logging.getLogger(__name__)
 
@@ -126,32 +126,34 @@ async def _download_and_parse(
             data, parse_mime = await drive.download_for_parsing(file, credentials)
         except Exception as exc:  # noqa: BLE001 - one bad file must not abort
             logger.warning("Download failed for '%s': %s", file.name, exc)
-            return _parsed(file, PARSE_ERROR, "error", str(exc))
+            return ParsedDocument(
+                file_id=file.id,
+                file_name=file.name,
+                web_view_link=file.web_view_link,
+                mime_type=file.mime_type,
+                text=PARSE_ERROR,
+                parse_status="error",
+                note=f"Download failed: {exc}",
+            )
 
-        # PDF/DOCX parsing is CPU-bound; keep it off the event loop.
-        text = await run_in_threadpool(parser.extract_text, data, parse_mime)
-        status = "ok"
-        if text == EMPTY_DOCUMENT:
-            status = "empty"
-        elif text == PARSE_ERROR:
-            status = "error"
-        return _parsed(file, text, status)
+        # PDF/DOCX parsing (incl. table extraction) is CPU-bound; keep it off
+        # the event loop.
+        result = await run_in_threadpool(parser.parse, data, parse_mime)
+        return ParsedDocument(
+            file_id=file.id,
+            file_name=file.name,
+            web_view_link=file.web_view_link,
+            mime_type=file.mime_type,
+            text=result.text,
+            tables_text=result.tables_text,
+            page_count=result.page_count,
+            word_count=result.word_count,
+            table_count=result.table_count,
+            parse_status=result.status,  # type: ignore[arg-type]
+            note=result.note,
+        )
 
     return await asyncio.gather(*(process(f) for f in files))
-
-
-def _parsed(
-    file: DriveFile, text: str, status: str, note: str | None = None
-) -> ParsedDocument:
-    return ParsedDocument(
-        file_id=file.id,
-        file_name=file.name,
-        web_view_link=file.web_view_link,
-        mime_type=file.mime_type,
-        text=text,
-        parse_status=status,  # type: ignore[arg-type]
-        note=note,
-    )
 
 
 def _build_stats(

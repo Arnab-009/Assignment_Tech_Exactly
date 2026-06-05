@@ -33,27 +33,66 @@ class DriveFile(BaseModel):
 
 
 class ParsedDocument(BaseModel):
-    """A downloaded + text-extracted document, ready for summarization."""
+    """A downloaded + text-extracted document, ready for summarization.
+
+    Beyond the raw ``text`` it carries lightweight structural metadata
+    (page/word/table counts and a flattened representation of any tables) so
+    the LLM can reason about tabular data instead of ignoring it.
+    """
 
     file_id: str
     file_name: str
     web_view_link: str = ""
     mime_type: str
     text: str = ""
+    tables_text: str = ""
+    page_count: Optional[int] = None
+    word_count: int = 0
+    table_count: int = 0
     parse_status: ParseStatus = "ok"
     note: Optional[str] = None
 
 
-class DocumentSummary(BaseModel):
-    """The final, user-facing summary for a single document."""
+class DocumentEntities(BaseModel):
+    """Named entities extracted from a document."""
 
+    organizations: list[str] = Field(default_factory=list)
+    locations: list[str] = Field(default_factory=list)
+    dates: list[str] = Field(default_factory=list)
+    monetary_values: list[str] = Field(default_factory=list)
+    percentages: list[str] = Field(default_factory=list)
+
+
+class DocumentSummary(BaseModel):
+    """The final, user-facing document-intelligence record for one file."""
+
+    # Identity
     file_id: str
     file_name: str
     web_view_link: str = ""
     mime_type: str
-    summary: str
+    file_type: str = ""
+
+    # Outcome
     status: SummaryStatus
     error_message: Optional[str] = None
+
+    # Structural metadata
+    pages: Optional[int] = None
+    word_count: int = 0
+    tables_found: int = 0
+
+    # AI analysis
+    summary: str = ""
+    document_category: str = ""
+    key_topics: list[str] = Field(default_factory=list)
+    important_numbers: list[str] = Field(default_factory=list)
+    table_insights: str = ""
+    entities: DocumentEntities = Field(default_factory=DocumentEntities)
+    confidence: float = 0.0
+    document_quality: str = ""
+
+    generated_at: str = ""
 
 
 class SummarizeRequest(BaseModel):
