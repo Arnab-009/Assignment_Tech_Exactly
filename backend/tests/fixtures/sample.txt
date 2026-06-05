@@ -1,0 +1,5 @@
+This is a plain text test fixture.
+It has multiple lines of content.
+The Document Summarizer should extract this text successfully.
+Here is some additional detail to ensure the parser handles multi-line content properly.
+End of test file.
