@@ -69,7 +69,7 @@ DOCUMENT_CATEGORIES = [
 USER_PROMPT = """Analyze the following document and return a JSON object.
 
 Guidance for each field:
-- summary: A polished executive summary of 15-20 sentences (roughly 350-400 \
+- summary: A polished executive summary of 5-10 sentences (roughly 100-200 \
 words) in plain prose (no bullet points, no preamble). Cover the main topic, \
 the key points, concrete insights drawn from any tables/numbers, and the main \
 conclusion or recommendation. Never produce a one-line summary.
