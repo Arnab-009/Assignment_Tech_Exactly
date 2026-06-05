@@ -12,304 +12,133 @@
 
 ## ✨ Features
 
-| Feature | Description |
-|---|---|
-| **Google Drive OAuth2** | Secure sign-in with Google. Read-only access to your Drive. |
-| **Multi-format Parsing** | Extracts text from PDF (PyMuPDF), DOCX (python-docx), TXT, and Google Docs (auto-exported). |
-| **AI Summarization** | Each document gets a 5–10 sentence summary powered by Gemini 2.5 Flash. |
-| **Batch Processing** | Processes up to 20 files concurrently with per-file fault isolation. |
-| **Export Reports** | Download results as a CSV spreadsheet or a styled PDF report. |
-| **Modern React UI** | Clean, responsive interface with real-time loading states, expandable summaries, and file-type badges. |
-| **Docker Ready** | One-command deployment with `docker compose up`. |
+- **Google Drive Integration**: Secure sign-in with Google OAuth2 to access your Drive (Read-Only).
+- **Multi-format Parsing**: Extracts text from PDFs, DOCX files, TXTs, and Google Docs automatically.
+- **AI Summarization**: Generates a neat 5-10 sentence summary for each document using Gemini 2.5 Flash, along with key topics, important numbers, and extracted entities.
+- **Downloadable Reports**: Export your results as a clean CSV spreadsheet or a beautifully styled PDF report.
+- **Modern UI**: A responsive, fast React interface with real-time feedback.
+- **Docker Ready**: Deploy everything with a single command.
 
 ---
 
-## 🏗️ Architecture
+## 🚀 Step-by-Step Setup Guide to start this system
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    CLIENT BROWSER                   │
-│           React SPA (Vite + Tailwind CSS)           │
-└────────────────────┬────────────────────────────────┘
-                     │ HTTP (:8080)
-┌────────────────────▼────────────────────────────────┐
-│                 NGINX REVERSE PROXY                 │
-│     /api/* → backend:8000    /* → static files      │
-└────────┬──────────────────────────┬─────────────────┘
-         │                          │
-┌────────▼───────────┐    ┌────────▼─────────────────┐
-│   FASTAPI BACKEND  │    │  REACT STATIC FILES      │
-│                    │    │  (built by Vite)          │
-│  ┌──────────────┐  │    └──────────────────────────┘
-│  │ Auth Router  │  │
-│  │ Drive Router │  │
-│  │ Summarize    │  │
-│  │ Export       │  │
-│  └──────────────┘  │
-│  ┌──────────────┐  │
-│  │ Services:    │  │
-│  │ Drive        │──┼──→ Google Drive API
-│  │ Parser       │  │
-│  │ LLM          │──┼──→ Gemini 2.5 Flash
-│  │ Export       │  │
-│  └──────────────┘  │
-└────────────────────┘
-```
+Follow these steps to get the project running on your local machine.
+
+### Prerequisites
+Make sure you have installed on your computer:
+1. [Git](https://git-scm.com/downloads)
+2. [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Must be installed and running!)
 
 ---
 
-## 📋 Prerequisites
-
-1. **Python 3.12+** (for local development without Docker)
-2. **Node.js 20+** (for local frontend development)
-3. **Docker & Docker Compose** (for containerized deployment)
-4. **Google Cloud Project** with:
-   - Google Drive API enabled
-   - OAuth 2.0 Web Client credentials
-5. **Gemini API Key** from [Google AI Studio](https://aistudio.google.com/apikey)
-
----
-
-## 🔐 Google Cloud Setup (One-time)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select an existing one)
-3. Enable the **Google Drive API**
-4. Go to **APIs & Services → Credentials**
-5. Click **Create Credentials → OAuth 2.0 Client ID**
-   - Application type: **Web application**
-   - Authorized redirect URIs:
-     - Docker: `http://localhost:8080/api/auth/callback`
-     - Local dev: `http://localhost:5173/api/auth/callback`
-6. Copy the **Client ID** and **Client Secret**
-
----
-
-## 🚀 Quick Start (Docker)
-
-The fastest way to run the full stack:
-
+### Step 1: Clone the Repository
+First, download the code to your local machine using your terminal (or command prompt):
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/Assignment_Tech_Exactly.git
+git clone https://github.com/Arnab-009/Assignment_Tech_Exactly.git
 cd Assignment_Tech_Exactly
-
-# 2. Create your environment file
-cp .env.example .env
-# Edit .env with your real credentials:
-#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, SECRET_KEY
-
-# 3. Build and start all services
-docker compose up --build
-
-# 4. Open in browser
-open http://localhost:8080
 ```
 
-### What Docker starts:
+### Step 2: Get your Gemini API Key
+This app uses Google's Gemini AI to read and summarize documents.
+1. Go to [Google AI Studio](https://aistudio.google.com/apikey).
+2. Sign in with your Google account.
+3. Click **"Create API Key"** and copy the generated string. Keep this safe for Step 4.
 
-| Service | Container | Port |
-|---|---|---|
-| FastAPI backend | `docsum-backend` | 8000 (internal) |
-| React frontend | `docsum-frontend` | — (provides static files) |
-| Nginx proxy | `docsum-nginx` | **8080** (public) |
+### Step 3: Get Google OAuth Credentials
+To let the app access your Google Drive, you need to create an OAuth Client ID.
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a new project (e.g., name it "DocSummarizer").
+3. In the search bar at the top, type **"Google Drive API"** and click **Enable**.
+4. Go to **APIs & Services > OAuth consent screen**. 
+   - Choose **External** and fill in the required App Name and User Support Email fields. Save and continue.
+   - Click Add or Remove Scopes, search for Google Drive API and select `.../auth/drive.readonly`. Save and continue.
+   - Under "Test users", click **Add Users** and add your own email address. Save and continue.
+5. Go to **APIs & Services > Credentials** on the left sidebar.
+6. Click **+ Create Credentials > OAuth client ID**.
+   - Application type: **Web application**
+   - Name: `DocSummarizer local`
+   - Authorized redirect URIs: Click **+ ADD URI** and paste exactly: `http://localhost:8080/api/auth/callback`
+7. Click **Create**. A popup will appear with your **Client ID** and **Client Secret**. Keep these handy!
+
+### Step 4: Configure Environment Variables
+The application needs your secret keys to run.
+1. In the root of the project folder, make a copy of the `.env.example` file and name it `.env`.
+   ```bash
+   cp .env.example .env
+   ```
+2. Open the new `.env` file in any text editor (like VS Code, Notepad, or TextEdit).
+3. Fill in the keys you collected in Steps 2 and 3 so it looks like this:
+   ```env
+   GOOGLE_CLIENT_ID=your_client_id_here
+   GOOGLE_CLIENT_SECRET=your_client_secret_here
+   GEMINI_API_KEY=your_gemini_api_key_here
+   SECRET_KEY=put_any_random_long_string_here_like_abcdef123456
+   ```
+
+### Step 5: Start the Application!
+With Docker Desktop running in the background, type the following command in your terminal:
+```bash
+docker compose up --build
+```
+*Note: The first time you run this, it will take a few minutes to download the necessary files and install dependencies.*
+
+Once the terminal stops scrolling and shows the containers are running, open your web browser and go to:
+👉 **[http://localhost:8080](http://localhost:8080)**
+
+**You're done!** Click "Connect Google Drive", authorize your account, select a Google Drive folder from the dropdown, choose a document from the list to summarize, and click the summarize button!
 
 ---
 
 ## 🛠️ Local Development (Without Docker)
 
-### Backend
+If you want to edit the code and run the app manually without Docker:
 
+**1. Backend (FastAPI)**
 ```bash
 cd backend
-
-# Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate  # macOS/Linux
-# .venv\Scripts\activate   # Windows
-
-# Install dependencies
+source .venv/bin/activate  # Or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 
-# Create .env from the root template
-cp ../.env.example .env
-# Edit .env: set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, SECRET_KEY
-# IMPORTANT: For local dev, set:
-#   GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
-#   POST_LOGIN_REDIRECT=http://localhost:5173
+# Copy the environment file from the root directory
+cp ../.env .env
 
-# Run the server
+# Edit backend/.env to use the local React dev server ports:
+# GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
+# POST_LOGIN_REDIRECT=http://localhost:5173
+
 uvicorn app.main:app --reload --port 8000
 ```
+*⚠️ **Important**: Because you changed `GOOGLE_REDIRECT_URI` to use port `5173`, you MUST go back to the Google Cloud Console (Step 3) and add `http://localhost:5173/api/auth/callback` to your Authorized Redirect URIs!*
 
-### Frontend
-
+**2. Frontend (React)**
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start dev server (proxies /api → localhost:8000)
 npm run dev
-# → Opens at http://localhost:5173
+# The app will open at http://localhost:5173
 ```
 
 ---
 
 ## 🧪 Running Tests
+You can run the automated backend test suite using Docker (recommended) or locally.
 
+**Option 1: Using Docker (Easiest)**
+```bash
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+```
+
+**Option 2: Local Environment**
 ```bash
 cd backend
-
-# Install dev dependencies
+# Make sure your virtual environment is activated
 pip install -r requirements-dev.txt
-
-# Run the test suite
-pytest
-
-# Run with verbose output
 pytest -v
-
-# Run a specific test file
-pytest tests/test_parser.py -v
 ```
-
-### Test Coverage
-
-| Test File | What It Tests |
-|---|---|
-| `test_parser.py` | PDF, DOCX, TXT extraction; truncation; error handling; edge cases |
-| `test_llm.py` | Gemini API mocking; batch processing; fault isolation; empty/error skipping |
-| `test_export.py` | CSV structure/encoding; PDF generation; empty input handling |
-
----
-
-## 📁 Project Structure
-
-```
-Assignment_Tech_Exactly/
-│
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py              # Package + version
-│   │   ├── main.py                  # FastAPI app factory
-│   │   ├── config.py                # pydantic-settings config
-│   │   ├── dependencies.py          # DI: auth, services, session
-│   │   ├── exceptions.py            # Domain exceptions
-│   │   ├── cache.py                 # In-memory TTL result store
-│   │   ├── logging_config.py        # Structured logging setup
-│   │   │
-│   │   ├── models/
-│   │   │   └── schemas.py           # Pydantic models
-│   │   │
-│   │   ├── routers/
-│   │   │   ├── auth.py              # OAuth2 login/callback/logout
-│   │   │   ├── drive.py             # Drive folder listing + preview
-│   │   │   ├── summarize.py         # Full pipeline endpoint
-│   │   │   └── export.py            # CSV & PDF download
-│   │   │
-│   │   └── services/
-│   │       ├── drive_service.py     # Google Drive API wrapper
-│   │       ├── parser_service.py    # PDF/DOCX/TXT text extraction
-│   │       ├── llm_service.py       # Gemini summarization
-│   │       └── export_service.py    # Report generation
-│   │
-│   ├── tests/
-│   │   ├── conftest.py              # Shared fixtures
-│   │   ├── test_parser.py
-│   │   ├── test_llm.py
-│   │   └── test_export.py
-│   │
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── requirements-dev.txt
-│   └── pytest.ini
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx                  # Root component + state management
-│   │   ├── main.jsx                 # React entry point
-│   │   ├── index.css                # Tailwind + custom animations
-│   │   │
-│   │   ├── api/
-│   │   │   └── client.js            # Fetch wrapper for backend API
-│   │   │
-│   │   └── components/
-│   │       ├── Header.jsx           # App header + auth status
-│   │       ├── ConnectCard.jsx      # Google sign-in CTA
-│   │       ├── HomeView.jsx         # Folder ID input + submit
-│   │       ├── ResultsView.jsx      # Summary table + stats + export
-│   │       ├── Alert.jsx            # Error/info/success alerts
-│   │       └── Spinner.jsx          # Loading indicator
-│   │
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── postcss.config.js
-│
-├── nginx/
-│   └── nginx.conf                   # Reverse proxy configuration
-│
-├── docker-compose.yml               # Full-stack orchestration
-├── docker-compose.test.yml          # Test runner orchestration
-├── .env.example                     # Environment template (single source of truth)
-├── .gitignore
-└── README.md
-```
-
----
-
-## 🔧 Configuration
-
-All configuration is via environment variables (loaded from `.env`):
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `GOOGLE_CLIENT_ID` | ✅ | — | OAuth2 web client ID |
-| `GOOGLE_CLIENT_SECRET` | ✅ | — | OAuth2 web client secret |
-| `GOOGLE_REDIRECT_URI` | — | `http://localhost:8080/api/auth/callback` | Must match Google Console |
-| `GEMINI_API_KEY` | ✅ | — | Google Gemini API key |
-| `GEMINI_MODEL` | — | `gemini-2.5-flash` | Gemini model identifier |
-| `SECRET_KEY` | ✅ | — | Session cookie signing key |
-| `DEFAULT_FOLDER_ID` | — | *(empty)* | Pre-fill folder ID in UI |
-| `MAX_FILES_PER_RUN` | — | `20` | Max documents per run |
-| `MAX_FILE_SIZE_MB` | — | `10` | Skip files larger than this |
-| `LLM_CONCURRENCY` | — | `5` | Parallel Gemini API calls |
-| `SUMMARIZE_COOLDOWN_SECONDS` | — | `30` | Rate limit between runs |
-
----
-
-## 📊 API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/auth/login` | Start OAuth2 flow |
-| `GET` | `/api/auth/callback` | OAuth2 redirect handler |
-| `GET` | `/api/auth/status` | Check auth status + email |
-| `POST` | `/api/auth/logout` | Clear session |
-| `GET` | `/api/drive/files?folder_id=...` | List files in a Drive folder |
-| `POST` | `/api/summarize` | Run full summarization pipeline |
-| `GET` | `/api/results` | Retrieve cached results |
-| `GET` | `/api/export/csv` | Download CSV report |
-| `GET` | `/api/export/pdf` | Download PDF report |
-
----
-
-## 🛡️ Security
-
-- OAuth tokens stored in **signed, HttpOnly session cookies**
-- Drive API scope limited to **read-only** (`drive.readonly`)
-- File downloads happen **server-side** (credentials never exposed to browser)
-- `client_secret.json` is **gitignored**
-- Per-session **rate limiting** on the summarization endpoint
-- Security headers via Nginx: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
 
 ---
 
 ## 📝 License
-
 This project is licensed under the [Apache License 2.0](LICENSE).
