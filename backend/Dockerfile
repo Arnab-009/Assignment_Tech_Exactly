@@ -13,6 +13,7 @@ RUN apt-get update && \
         libfreetype6-dev \
         libjpeg62-turbo-dev \
         zlib1g-dev \
+        fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies (cached layer unless requirements.txt changes)
